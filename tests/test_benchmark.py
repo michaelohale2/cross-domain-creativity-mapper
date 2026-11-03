@@ -173,3 +173,28 @@ def test_scoring_stops_when_the_judge_stays_unreachable(tmp_path, monkeypatch):
     with pytest.raises(JudgeUnavailable):
         run_benchmark(run_dir, "A", "B", judge)
     assert judge.calls == 6  # two calls x three attempts, then it gives up
+
+
+def test_partial_run_scores_only_the_reports_named_in_its_readme(tmp_path, monkeypatch):
+    monkeypatch.setattr("creativity_mapper.benchmark.time.sleep", lambda _s: None)
+    run_dir = make_run_dir(tmp_path)  # has 04, 05 and 06 on disk
+    (run_dir / "README.md").write_text(
+        "# A → B\n\n<!-- creative-reports: 06_poems.md -->\n"
+    )
+    script = ['{"semantic_distance": {"score": 7, "evidence": "e"}}', GOOD_REPORT]
+    judge = FakeJudge(script)
+    result = run_benchmark(run_dir, "A", "B", judge)
+    assert list(result.reports) == ["06_poems.md"]
+    assert judge.calls == 2
+    assert result.partial
+
+
+def test_partial_runs_are_flagged_in_every_output(tmp_path):
+    result = make_result()
+    assert result.partial
+    assert "Partial run: scored 2 of 9" in render_markdown(result)
+    (tmp_path / "README.md").write_text("# A → B\n")
+    save_benchmark(tmp_path, result)
+    assert "not comparable with full-run indexes" in (tmp_path / "README.md").read_text()
+    data = json.loads((tmp_path / "creativity_benchmark.json").read_text())
+    assert data["partial"] is True and data["reports_scored"] == 2

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from crewai.types.usage_metrics import UsageMetrics
 
-from creativity_mapper.report import CREATIVE_REPORTS, count_domain_mentions, domain_pattern, add_header, clean_markdown, finalize_run, preserve_line_breaks, usage_table
+from creativity_mapper.report import scoped_reports, CREATIVE_REPORTS, count_domain_mentions, domain_pattern, add_header, clean_markdown, finalize_run, preserve_line_breaks, usage_table
 
 WHEN = datetime(2026, 10, 25, 14, 30)
 
@@ -91,3 +91,19 @@ def test_creative_reports_start_after_the_brief():
     assert CREATIVE_REPORTS[0] == "04_narratives.md"
     assert CREATIVE_REPORTS[-1] == "12_found_documents.md"
     assert len(CREATIVE_REPORTS) == 9
+
+
+def test_partial_run_records_its_scope_in_the_readme(tmp_path):
+    (tmp_path / "01_phenomenon.md").write_text("# P\n")
+    (tmp_path / "06_poems.md").write_text("# Poems\n")
+    finalize_run(tmp_path, "A", "B", WHEN, partial=["Poet"])
+    readme = (tmp_path / "README.md").read_text()
+    assert "**Partial run.** Only these creative agents ran: Poet." in readme
+    assert scoped_reports(tmp_path) == ["06_poems.md"]
+
+
+def test_full_run_has_no_scope(tmp_path):
+    (tmp_path / "06_poems.md").write_text("# Poems\n")
+    finalize_run(tmp_path, "A", "B", WHEN)
+    assert scoped_reports(tmp_path) is None
+    assert scoped_reports(tmp_path / "missing") is None

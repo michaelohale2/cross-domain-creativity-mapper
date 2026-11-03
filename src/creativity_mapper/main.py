@@ -5,7 +5,7 @@ from pathlib import Path
 
 from creativity_mapper.benchmark import benchmark_run, read_domains
 from creativity_mapper.config import get_judge_llm, get_llm
-from creativity_mapper.crew import run_crew
+from creativity_mapper.crew import agent_ids, resolve_agents, run_crew
 from creativity_mapper.observability import logger, setup_run_logging
 from creativity_mapper.paths import create_run_dir, sanitize_domain
 
@@ -30,6 +30,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("primary", nargs="?", help="Primary domain (prompted for if omitted)")
     parser.add_argument("target", nargs="?", help="Target domain (prompted for if omitted)")
     parser.add_argument(
+        "--only", metavar="AGENT", action="append",
+        help="Run only this creative agent after the analytical steps (1-3b), e.g. --only Poet. "
+        "May be repeated. Agents: " + ", ".join(agent_ids()),
+    )
+    parser.add_argument(
         "-b", "--benchmark", action="store_true",
         help="After the run, score its creativity with a judge model (set JUDGE_MODEL in .env)",
     )
@@ -40,11 +45,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("-v", "--verbose", action="store_true", help="Show full agent output while running")
     args = parser.parse_args(argv)
     if args.score_run is not None:
-        if args.primary is not None or args.benchmark:
-            parser.error("--score-run scores an existing run on its own; drop the domains and --benchmark")
+        if args.primary is not None or args.benchmark or args.only:
+            parser.error("--score-run scores an existing run on its own; drop the domains, --benchmark and --only")
         if not args.score_run.is_dir():
             parser.error(f"{args.score_run} is not a run folder")
         return args
+    if args.only:
+        try:
+            args.only_steps = resolve_agents(args.only)
+        except ValueError as e:
+            parser.error(str(e))
+    else:
+        args.only_steps = None
     if args.primary is not None and args.target is None:
         parser.error("provide both primary and target domains, or neither")
     for value in (args.primary, args.target):
@@ -106,7 +118,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Log file: {log_path}")
         logger.info("run started: %s -> %s (model %s)", primary, target, llm.model)
 
-        run_crew(primary, target, run_dir, llm, verbose=args.verbose)
+        run_crew(primary, target, run_dir, llm, verbose=args.verbose, only=args.only_steps)
     except (KeyboardInterrupt, EOFError):
         logger.warning("run cancelled by user")
         print("\nCancelled.", file=sys.stderr)

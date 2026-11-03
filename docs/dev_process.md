@@ -101,6 +101,16 @@ Request: add a benchmark scoring semantic distance, metaphorical density and fre
 
 **Caveats.** The judge is the same model that wrote the work unless `JUDGE_MODEL` is set; the semantic distance score looked generous (9 for fungal predation mapped to hostile takeovers, a fairly familiar analogy), which a stronger judge may fix; the judge's free-text evidence is not verified, only its quoted clichés.
 
+## Running a single agent
+
+Request: pass an agent ID such as `Poet` on the command line and get only that agent's output after the analytical steps, with the benchmark still working.
+
+- **`--only AGENT`** (repeatable). Steps 1, 2, 3 and 3b always run, since every creative agent reads the brief. Then only the chosen agents run, so a Poet-only run is 5 steps instead of 13.
+- **Refactor.** `run_crew` used to name all nine creative agents and tasks by hand. They are now one table (`CREATIVE_STEPS`: name, progress label, report file, agent factory, task factory, aliases), so selecting agents, the report list and the benchmark's report list all come from one place, and a test checks the table against the benchmark's list. Agent IDs ignore case and punctuation and accept the name, an alias or the report number.
+- **Benchmark scope.** As suggested, the run's `README.md` records the scope: a visible "Partial run" note plus a machine-readable `<!-- creative-reports: ... -->` comment. The scorer reads it to decide which reports to score (rather than trusting whatever files are on disk), and flags the result as partial everywhere (the benchmark report, the JSON and the README) because an index built from one piece is noisier and not comparable with a full run's.
+- **Finding:** the judge's scoring already worked on whichever reports existed; the README mechanism makes that explicit and records why the index differs.
+- **Cost note.** The target-domain brief dominates a single-agent run (about 24k of 34k tokens in the test run) because its guardrail used all three rewrite rounds on a hard pair (Geology to Jazz) and accepted the brief with leftover terms. Some terms the auditor flagged were ordinary jazz words ("friction", "threshold", "volume"), so it can over-flag.
+
 ## Decisions and reversals
 
 - **Tone input (added, then removed):** a per-run tone (Hilarious, Academic, Satirical, and so on) was added and wired through all agents. Then it was narrowed to the creative agents only, tried on a real run, and finally removed. A single forced tone usually did not fit the content, so the creative agents now choose whatever voice suits each idea. The analytical agents stay neutral.
@@ -110,7 +120,7 @@ Request: add a benchmark scoring semantic distance, metaphorical density and fre
 
 ## Testing
 
-- 45 unit tests (`uv run pytest`) cover domain sanitizing, timestamped directories, fence stripping, bold-line separation, header insertion, the run index, token usage tables, line-break preservation, observability helpers, domain-term counting and the benchmark's parsing, scoring math and file output.
+- 54 unit tests (`uv run pytest`) cover domain sanitizing, timestamped directories, fence stripping, bold-line separation, header insertion, the run index, token usage tables, line-break preservation, observability helpers, domain-term counting and the benchmark's parsing, scoring math and file output.
 - The LLM calls are not unit-tested. Every agent was checked by running the whole crew on real domain pairs (Biology/Politics, Quantum Physics/Macroeconomics, Geology/Jazz, and others) and reading the output.
 
 ## Known limitations and ideas

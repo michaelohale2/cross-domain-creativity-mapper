@@ -23,6 +23,9 @@ REPORT_TITLES = {
 # Reports meant to live in the target domain only (everything after the brief).
 CREATIVE_REPORTS = [name for name in REPORT_TITLES if name[:2].isdigit() and int(name[:2]) >= 4]
 
+# README comment naming the creative reports a partial run produced (see finalize_run).
+SCOPE_MARKER = "<!-- creative-reports:"
+
 _WRAPPING_FENCE = re.compile(r"\A\s*```[a-zA-Z]*\n(.*?)\n```\s*\Z", re.DOTALL)
 
 
@@ -81,8 +84,14 @@ def finalize_run(
     target: str,
     when: datetime | None = None,
     usage: list[tuple[str, UsageMetrics]] | None = None,
+    partial: list[str] | None = None,
 ) -> None:
-    """Add context headers to each report and write a README.md index."""
+    """Add context headers to each report and write a README.md index.
+
+    `partial` is the list of creative agents that ran when only some were selected. It
+    is recorded in the README (as a visible note and a machine-readable comment) so the
+    benchmark knows which reports to score.
+    """
     when = when or datetime.now()
     found = []
     for name, title in REPORT_TITLES.items():
@@ -94,6 +103,15 @@ def finalize_run(
         found.append((name, title))
 
     index = [f"# {primary} → {target}", "", f"Generated {when:%Y-%m-%d %H:%M}.", ""]
+    if partial:
+        ran = [name for name, _ in found if name in CREATIVE_REPORTS]
+        index += [
+            f"**Partial run.** Only these creative agents ran: {', '.join(partial)}. "
+            f"The analytical steps (phenomenon, mapping, critique, target-domain brief) "
+            f"always run first.",
+            f"{SCOPE_MARKER} {', '.join(ran)} -->",
+            "",
+        ]
     index += [f"- [{title}]({name})" for name, title in found]
     if usage:
         index += ["", "## Token usage", ""] + usage_table(usage)
@@ -123,3 +141,14 @@ def count_domain_mentions(run_dir: Path, domain: str, names: list[str]) -> dict[
         if path.exists():
             counts[name] = len(pattern.findall(path.read_text(encoding="utf-8")))
     return counts
+
+
+def scoped_reports(run_dir: Path) -> list[str] | None:
+    """Creative reports a partial run was limited to, per its README; None for a full run."""
+    readme = run_dir / "README.md"
+    if not readme.exists():
+        return None
+    match = re.search(re.escape(SCOPE_MARKER) + r" (.*?) -->", readme.read_text(encoding="utf-8"))
+    if not match:
+        return None
+    return [name for name in (n.strip() for n in match.group(1).split(",")) if name in CREATIVE_REPORTS]

@@ -19,7 +19,7 @@ from pathlib import Path
 from crewai import LLM
 
 from creativity_mapper.observability import format_elapsed, logger
-from creativity_mapper.report import CREATIVE_REPORTS, REPORT_TITLES
+from creativity_mapper.report import CREATIVE_REPORTS, REPORT_TITLES, scoped_reports
 
 MAX_REPORT_CHARS = 12_000
 JUDGE_ATTEMPTS = 3
@@ -112,6 +112,20 @@ class BenchmarkResult:
     semantic_distance: Criterion
     reports: dict[str, dict[str, Criterion]]
     index: float | None = None
+
+    @property
+    def partial(self) -> bool:
+        """True when fewer creative reports were scored than a full run produces."""
+        return len(self.reports) < len(CREATIVE_REPORTS)
+
+    def scope_note(self) -> str:
+        titles = ", ".join(REPORT_TITLES[n] for n in self.reports)
+        return (
+            f"Partial run: scored {len(self.reports)} of {len(CREATIVE_REPORTS)} creative "
+            f"reports ({titles}). Semantic distance is judged as usual, but the other two "
+            f"scores rest on {'a single piece' if len(self.reports) == 1 else 'few pieces'}, "
+            f"so this index is noisier and not comparable with full-run indexes."
+        )
 
     def mean(self, criterion: str) -> float | None:
         scores = [r[criterion].score for r in self.reports.values() if r[criterion].score]
@@ -253,7 +267,9 @@ def run_benchmark(run_dir: Path, primary: str, target: str, judge: LLM) -> Bench
     distance = to_criterion((data or {}).get("semantic_distance"))
 
     reports: dict[str, dict[str, Criterion]] = {}
-    names = [n for n in CREATIVE_REPORTS if (run_dir / n).exists()]
+    # A partial run records which agents ran in its README; otherwise score what exists.
+    scoped = scoped_reports(run_dir)
+    names = [n for n in (scoped if scoped is not None else CREATIVE_REPORTS) if (run_dir / n).exists()]
     for i, name in enumerate(names, 1):
         print(f"Judging [{i}/{len(names)}] {REPORT_TITLES[name]}...")
         piece = read_report(run_dir, name)
@@ -293,6 +309,7 @@ def render_markdown(result: BenchmarkResult, usage_line: str = "") -> str:
         "",
         f"**Creativity Index: {fmt(result.index)} / 30**",
         "",
+        *([f"> **{result.scope_note()}**", ""] if result.partial else []),
         "| Criterion | Score | Basis |",
         "| --- | ---: | --- |",
         f"| Semantic Distance | {fmt(result.semantic_distance.score)} | the phenomenon and mapping |",
@@ -346,6 +363,8 @@ def save_benchmark(run_dir: Path, result: BenchmarkResult, usage_line: str = "")
         "target": result.target,
         "judge_model": result.judge_model,
         "creativity_index": result.index,
+        "partial": result.partial,
+        "reports_scored": len(result.reports),
         "semantic_distance": result.semantic_distance.score,
         "metaphorical_density": result.mean("metaphorical_density"),
         "freedom_from_cliche": result.mean("freedom_from_cliche"),
@@ -368,6 +387,8 @@ def save_benchmark(run_dir: Path, result: BenchmarkResult, usage_line: str = "")
             f"freedom from cliché {fmt(result.mean('freedom_from_cliche'))}). "
             f"Details: [creativity_benchmark.md](creativity_benchmark.md).\n"
         )
+        if result.partial:
+            text += f"\n_{result.scope_note()}_\n"
         readme.write_text(text, encoding="utf-8")
     return md_path
 

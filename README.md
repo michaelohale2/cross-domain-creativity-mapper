@@ -32,6 +32,15 @@ uv run creativity-mapper "Quantum Physics" Macroeconomics --verbose
 
 When prompted, you are asked for the primary and target domains. The phenomenon, mapping and critique are written in a neutral, analytical register so you can examine the ideas critically; the narrative, product, poetry, lyrics, comic, podcast, musical, game and found-document agents choose whatever voice best fits each concept.
 
+To generate just one kind of output, name the creative agent with `--only` (repeat it for a few). The analytical steps 1-3b always run first, because every creative agent works from the brief they produce, and then only the chosen agent runs:
+
+```sh
+uv run creativity-mapper Geology Jazz --only Poet
+uv run creativity-mapper Geology Jazz --only Poet --only Lyricist --benchmark
+```
+
+Names ignore case and punctuation and accept the agent's name (`Poet`, `Game Designer`), a short alias (`poems`, `lyrics`, `game`, `musical`, `documents`) or the report number (`06`). Run `uv run creativity-mapper --help` for the full list. The run's `README.md` records that it was a partial run and which agents ran.
+
 Quote domains that contain spaces. By default you see one progress line per agent; `-v` / `--verbose` shows full agent output. A run takes a few minutes. You can also run it with `uv run python -m creativity_mapper.main`.
 
 ## The pipeline
@@ -91,7 +100,7 @@ uv run creativity-mapper Geology Jazz --benchmark
 uv run creativity-mapper --score-run output/Geology_Jazz_20261026_130713
 ```
 
-Three criteria, each 1-10:
+A partial run (`--only`) is scored on just the reports it produced; the run's README tells the scorer which, and the benchmark report flags the index as based on a partial set, so it is noisier and not comparable with full-run indexes. Three criteria, each 1-10:
 
 | Criterion | Judged on | Question |
 | --- | --- | --- |
