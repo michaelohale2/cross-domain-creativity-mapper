@@ -3,6 +3,8 @@ name = "cross-domain-creativity-mapper"
 version = "0.1.0"
 description = "Multi-agent CrewAI CLI that maps an unusual phenomenon from one domain onto another."
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "crewai[google-genai]>=1.15.30",
     "python-dotenv>=1.2.4",

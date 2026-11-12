@@ -192,7 +192,7 @@ def test_partial_run_scores_only_the_reports_named_in_its_readme(tmp_path, monke
 def test_partial_runs_are_flagged_in_every_output(tmp_path):
     result = make_result()
     assert result.partial
-    assert "Partial run: scored 2 of 9" in render_markdown(result)
+    assert "Partial run: scored 2 of 10" in render_markdown(result)
     (tmp_path / "README.md").write_text("# A → B\n")
     save_benchmark(tmp_path, result)
     assert "not comparable with full-run indexes" in (tmp_path / "README.md").read_text()

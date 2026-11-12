@@ -18,6 +18,7 @@ REPORT_TITLES = {
     "10_musical.md": "Satirical Musical",
     "11_game.md": "Game Design",
     "12_found_documents.md": "Found Documents",
+    "13_pitch.md": "Story Pitch",
 }
 
 # Reports meant to live in the target domain only (everything after the brief).

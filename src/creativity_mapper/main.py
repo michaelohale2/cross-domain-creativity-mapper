@@ -4,7 +4,7 @@ import warnings
 from pathlib import Path
 
 from creativity_mapper.benchmark import benchmark_run, read_domains
-from creativity_mapper.config import get_judge_llm, get_llm
+from creativity_mapper.config import PROVIDERS, get_judge_llm, get_llm
 from creativity_mapper.crew import agent_ids, resolve_agents, run_crew
 from creativity_mapper.observability import logger, setup_run_logging
 from creativity_mapper.paths import create_run_dir, sanitize_domain
@@ -42,6 +42,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--score-run", metavar="RUN_DIR", type=Path,
         help="Only score an existing run folder (no generation) and exit",
     )
+    parser.add_argument(
+        "-p", "--provider", choices=PROVIDERS,
+        help="Model provider: 'gemini' (online, needs GEMINI_API_KEY) or 'local' (Ollama, uses "
+        "LOCAL_MODEL). Overrides LLM_PROVIDER in .env; default gemini",
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="Show full agent output while running")
     args = parser.parse_args(argv)
     if args.score_run is not None:
@@ -74,12 +79,14 @@ def short_error(e: Exception, limit: int = 300) -> str:
         return "Gemini rejected GEMINI_API_KEY. Check the key in your .env file."
     if any(m in text for m in ("nodename nor servname", "Name or service not known", "Temporary failure in name resolution")):
         return "Could not reach the Gemini API (DNS lookup failed). Check your network or VPN and try again."
+    if "Connection refused" in text or "Cannot connect to host" in text:
+        return "Could not reach the local Ollama server. Start it (`ollama serve`) or check OLLAMA_HOST."
     return text if len(text) <= limit else text[:limit] + "..."
 
 
-def score(run_dir: Path, primary: str, target: str) -> None:
+def score(run_dir: Path, primary: str, target: str, provider: str | None = None) -> None:
     """Run the creativity benchmark on a finished run and print the headline."""
-    result = benchmark_run(run_dir, primary, target, get_judge_llm())
+    result = benchmark_run(run_dir, primary, target, get_judge_llm(provider))
     print(
         f"Creativity Index: {result.index if result.index is not None else 'n/a'} / 30 "
         f"(judge {result.judge_model}). Details: {run_dir / 'creativity_benchmark.md'}"
@@ -95,7 +102,7 @@ def main(argv: list[str] | None = None) -> None:
         run_dir = args.score_run.resolve()
         try:
             setup_run_logging(run_dir, verbose=args.verbose)
-            score(run_dir, *read_domains(run_dir))
+            score(run_dir, *read_domains(run_dir), provider=args.provider)
         except (KeyboardInterrupt, EOFError):
             print("\nCancelled.", file=sys.stderr)
             raise SystemExit(130)
@@ -106,7 +113,7 @@ def main(argv: list[str] | None = None) -> None:
             raise SystemExit(f"Scoring failed ({type(e).__name__}): {short_error(e)}")
         return
 
-    llm = get_llm()  # fail fast on a missing API key, before asking for input
+    llm = get_llm(provider=args.provider)  # fail fast on a missing key or model, before asking for input
 
     try:
         primary = args.primary or prompt_domain("Primary Domain", "Biology, Quantum Physics")
@@ -117,6 +124,7 @@ def main(argv: list[str] | None = None) -> None:
         log_path = setup_run_logging(run_dir, verbose=args.verbose)
         print(f"Log file: {log_path}")
         logger.info("run started: %s -> %s (model %s)", primary, target, llm.model)
+        print(f"Model: {llm.model}")
 
         run_crew(primary, target, run_dir, llm, verbose=args.verbose, only=args.only_steps)
     except (KeyboardInterrupt, EOFError):
@@ -133,7 +141,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.benchmark:
         try:
-            score(run_dir, primary, target)
+            score(run_dir, primary, target, args.provider)
         except KeyboardInterrupt:
             raise SystemExit(130)
         except Exception as e:

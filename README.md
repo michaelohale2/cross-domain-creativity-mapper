@@ -1,6 +1,6 @@
 # Cross-Domain Creativity Mapper
 
-A multi-agent CLI built on [CrewAI](https://www.crewai.com/) and Gemini. Give it two unrelated domains, and a thirteen-agent pipeline finds an unusual phenomenon in the first, maps its mechanics onto the second, critiques the mapping, then pitches stories, software products, poems, song lyrics and a comic (as image-generator prompts), a fictional podcast episode, a satirical musical, a desktop game design with world lore, and a story told through found documents built on it.
+A multi-agent CLI built on [CrewAI](https://www.crewai.com/) and Gemini. Give it two unrelated domains, and a fourteen-agent pipeline finds an unusual phenomenon in the first, maps its mechanics onto the second, critiques the mapping, then pitches stories, software products, poems, song lyrics and a comic (as image-generator prompts), a fictional podcast episode, a satirical musical, a desktop game design with world lore, a story told through found documents, and a short novel pitch built on it.
 
 See [docs/prd.md](docs/prd.md) for the product definition and [docs/plan.md](docs/plan.md) for the implementation plan.
 
@@ -17,7 +17,10 @@ cp .env.example .env   # then edit .env
 
 | Variable | Purpose |
 | --- | --- |
-| `GEMINI_API_KEY` | Required. Your Gemini API key. |
+| `GEMINI_API_KEY` | Required for the Gemini provider. Your Gemini API key. |
+| `LLM_PROVIDER` | Optional. `gemini` (online, default) or `local` (Ollama). The `--provider` flag overrides it. |
+| `LOCAL_MODEL` | Required for the local provider. Name of the model in Ollama, e.g. `gemma4`. Served as `ollama/<name>`. |
+| `OLLAMA_HOST` | Optional. Ollama server URL, default `http://localhost:11434`. |
 | `MODEL` | Optional. CrewAI model id, default `gemini/gemini-2.5-flash`. |
 | `JUDGE_MODEL` | Optional. Model that scores creativity (see below); defaults to `MODEL`. A separate, stronger model is better. |
 | `LLM_TIMEOUT_SECONDS` | Optional. Per-request timeout, default `120`. A request that stalls longer is cancelled and retried (up to 3 attempts per step) instead of hanging. |
@@ -25,12 +28,14 @@ cp .env.example .env   # then edit .env
 ## Usage
 
 ```sh
+uv run creativity-mapper Biology Politics --provider local   # local Ollama model (LOCAL_MODEL)
+uv run creativity-mapper Biology Politics --provider gemini  # online Gemini (default)
 uv run creativity-mapper                        # prompts for both domains
 uv run creativity-mapper Biology Politics       # skip the prompts
 uv run creativity-mapper "Quantum Physics" Macroeconomics --verbose
 ```
 
-When prompted, you are asked for the primary and target domains. The phenomenon, mapping and critique are written in a neutral, analytical register so you can examine the ideas critically; the narrative, product, poetry, lyrics, comic, podcast, musical, game and found-document agents choose whatever voice best fits each concept.
+When prompted, you are asked for the primary and target domains. The phenomenon, mapping and critique are written in a neutral, analytical register so you can examine the ideas critically; the narrative, product, poetry, lyrics, comic, podcast, musical, game, found-document and pitch agents choose whatever voice best fits each concept.
 
 To generate just one kind of output, name the creative agent with `--only` (repeat it for a few). The analytical steps 1-3b always run first, because every creative agent works from the brief they produce, and then only the chosen agent runs:
 
@@ -47,7 +52,7 @@ Quote domains that contain spaces. By default you see one progress line per agen
 
 Agents run sequentially. Each report is written as soon as its agent finishes.
 
-**Keeping the two domains apart.** Steps 1-3 work across both domains. The Concept Distiller (3b) then rewrites the mapped concept as a self-contained brief in *target-domain language only*: a native name, every component translated, and the critique's breakdown points restated as real constraints inside the target domain. All the creative agents (4-12) read only that brief and never see the primary domain, the mapping table or the critique. A guardrail checks the draft brief for the primary domain's name and, through a short model review, for technical vocabulary that would sound out of place in the target domain, and sends it back for up to 3 rewrites. A little terminology can still slip through; at the end of each run the number of primary-domain name mentions across the creative reports is printed and logged.
+**Keeping the two domains apart.** Steps 1-3 work across both domains. The Concept Distiller (3b) then rewrites the mapped concept as a self-contained brief in *target-domain language only*: a native name, every component translated, and the critique's breakdown points restated as real constraints inside the target domain. All the creative agents (4-13) read only that brief and never see the primary domain, the mapping table or the critique. A guardrail checks the draft brief for the primary domain's name and, through a short model review, for technical vocabulary that would sound out of place in the target domain, and sends it back for up to 3 rewrites. A little terminology can still slip through; at the end of each run the number of primary-domain name mentions across the creative reports is printed and logged.
 
 | # | Agent | Reads | Writes |
 | --- | --- | --- | --- |
@@ -64,6 +69,7 @@ Agents run sequentially. Each report is written as soon as its agent finishes.
 | 10 | Satirical Musical Writer | the brief | `10_musical.md` |
 | 11 | Game Designer | the brief | `11_game.md` |
 | 12 | Found-Document Storyteller | the brief | `12_found_documents.md` |
+| 13 | Story Pitch Writer | the brief | `13_pitch.md` |
 
 ## Output
 
@@ -87,6 +93,7 @@ output/Biology_Politics_20261025_143005/
   10_musical.md
   11_game.md
   12_found_documents.md
+  13_pitch.md
 ```
 
 The timestamp means repeated runs of the same domains never overwrite each other. The agents pick a phenomenon fresh each time, so results differ between runs. The `output/` folder is gitignored.
@@ -114,7 +121,7 @@ How far to trust it: the judge runs at temperature 0, scores against written anc
 
 ## Watching a run
 
-- Each step prints its duration when it finishes, for example `[4/12] Writing narratives complete (7s)`.
+- Each step prints its duration when it finishes, for example `[4/13] Writing narratives complete (7s)`.
 - If a step runs longer than 15 seconds, a `... still working on 'Writing lyrics' (30s so far)` line is printed every 15 seconds, so you can tell a slow step from a stuck one.
 - Every run writes `run.log` in its folder with timestamped step starts and finishes, token counts, each HTTP request to Gemini, and library warnings such as retries, timeouts and rate limits. Start there when something looks wrong.
 - If a step still fails after its retries, the app names the step that failed and exits; reports finished before it are kept.
@@ -126,3 +133,7 @@ uv run pytest
 ```
 
 Code lives in `src/creativity_mapper/`: `main.py` (CLI), `config.py` (env and LLM), `paths.py` (run folders), `agents.py`, `tasks.py`, `crew.py` (pipeline), `report.py` (Markdown cleanup and index).
+
+## License
+
+[MIT](LICENSE)

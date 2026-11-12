@@ -20,6 +20,7 @@ from creativity_mapper.agents import (
     musical_satirist,
     narrative_designer,
     phenomenon_explorer,
+    pitch_writer,
     podcast_scriptwriter,
     poet,
     product_builder,
@@ -38,6 +39,7 @@ from creativity_mapper.tasks import (
     write_comic,
     write_lyrics,
     write_musical,
+    write_pitch,
     write_podcast,
     write_poems,
 )
@@ -86,6 +88,7 @@ CREATIVE_STEPS = [
     CreativeStep("Satirical Musical Writer", "Writing musical", "10_musical.md", musical_satirist, write_musical, ("musical",)),
     CreativeStep("Game Designer", "Designing game", "11_game.md", game_designer, design_game, ("game",)),
     CreativeStep("Found-Document Storyteller", "Compiling found documents", "12_found_documents.md", found_document_storyteller, compile_found_documents, ("documents", "founddocuments")),
+    CreativeStep("Story Pitch Writer", "Writing story pitch", "13_pitch.md", pitch_writer, write_pitch, ("pitch", "storypitch")),
 ]
 
 

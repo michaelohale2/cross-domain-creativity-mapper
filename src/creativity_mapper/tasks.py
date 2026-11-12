@@ -461,3 +461,32 @@ def compile_found_documents(
         context=[brief],
         callback=save_to(run_dir / "12_found_documents.md"),
     )
+
+
+def write_pitch(agent: Agent, run_dir: Path, brief: Task) -> Task:
+    return Task(
+        description=(
+            "Using the brief, write a story pitch for one original novel, as if you "
+            "had only two or three paragraphs to win over a literary agent or sell "
+            "the book to a publisher. The novel must use the {target_domain} concept "
+            "in the brief as its central engine, so that it could not be told without "
+            "it. Choose the genre that fits best. Open with a hook, introduce a "
+            "protagonist who wants something specific, show the stakes escalating "
+            "and the brief's strains and limits turning into conflict, and end on "
+            "the question or dilemma that makes a reader need the answer. Do not "
+            "reveal the ending. Use the setting and vocabulary of the brief."
+        ),
+        expected_output=(
+            "A Markdown report that opens with a '# <novel title>' heading, then an "
+            "italic line giving genre, target readership and approximate word count, "
+            "then exactly two or three paragraphs of pitch prose (no headings, bullets "
+            "or bold fields between them), then a final italic line with two or three "
+            "comparable titles in the form 'For readers of ...'. Total pitch prose "
+            "under 300 words."
+            + FORMAT_RULES
+            + CREATIVE_RULE
+        ),
+        agent=agent,
+        context=[brief],
+        callback=save_to(run_dir / "13_pitch.md"),
+    )

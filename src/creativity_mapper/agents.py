@@ -265,3 +265,25 @@ def found_document_storyteller(llm: LLM) -> Agent:
         llm=llm,
         allow_delegation=False,
     )
+
+
+def pitch_writer(llm: LLM) -> Agent:
+    return Agent(
+        role="Story Pitch Writer: literary-agent query and book-pitch specialist",
+        goal=(
+            "Distill one original novel built on the {target_domain} concept in the "
+            "brief into a short pitch that makes an agent or editor want the "
+            "manuscript."
+        ),
+        backstory=(
+            "You have written query letters and jacket copy that sold books. You know a "
+            "pitch is a hook, a protagonist who wants something, rising stakes and a "
+            "reason this book could only exist now, all in two or three tight "
+            "paragraphs. You never summarize the whole plot or explain the ending; "
+            "you sell the premise and the voice. You use the concept's mechanism as "
+            "the engine that makes this novel unlike any other on the shelf."
+            + CREATIVE_NOTE
+        ),
+        llm=llm,
+        allow_delegation=False,
+    )

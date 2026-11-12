@@ -89,8 +89,8 @@ def test_count_domain_mentions_skips_missing_reports(tmp_path):
 
 def test_creative_reports_start_after_the_brief():
     assert CREATIVE_REPORTS[0] == "04_narratives.md"
-    assert CREATIVE_REPORTS[-1] == "12_found_documents.md"
-    assert len(CREATIVE_REPORTS) == 9
+    assert CREATIVE_REPORTS[-1] == "13_pitch.md"
+    assert len(CREATIVE_REPORTS) == 10
 
 
 def test_partial_run_records_its_scope_in_the_readme(tmp_path):
